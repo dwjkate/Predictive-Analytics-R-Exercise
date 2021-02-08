@@ -1,8 +1,8 @@
 ---
 title: "Exercise 3 - Basic Models"
 subtitle: "WLS, Logistic and Trees"
-author: "J. Alberto Espinosa"
-date: "January 11, 2021"
+author: "Dawoon (Kate) Jung"
+date: "`r Sys.Date()`"
 output:
   word_document:
    toc: true
@@ -52,29 +52,20 @@ summary(fit.ols)
 ```{r}
 library(lmtest)
 
-
-bptest(fit.ols, data=Boston) 
+bptest(fit.ols, data = Hitters) 
 
 ```
 
 1.2 Display the first residual plot for **fit.ols** by using `which=1`.
    
 ```{r}
-
-plot(fit.ols, which=1)
-
-
-
-
+plot(fit.ols, which = 1)
 ```
 
 1.3 Is there a problem with Heteroskedasticity? Why or why not? In your answer, please refer to **both**, the BP test and the residual plot.  
     
 ```{r}
-
-
-
-
+# There is heteroskedasticity. The p-value of the Breush-Pagan test is 0.01699, which is referring the significance of heteroskedasticity. According to the first residual plot, the error variance is not even, has some pattern. 
 ```
 
 
@@ -87,16 +78,18 @@ plot(fit.ols, which=1)
 As a sanity check, display the first 10 rows of the `fitted()` values of **lm.abs.res**
 
 ```{r}
-lm.abs.res <- lm(abs(residuals(fit.ols)) ~ fitted(fit.ols))
+abs.res <- abs(residuals(fit.ols))
+fitted.ols <- fitted(fit.ols)
+lm.abs.res <- lm(abs.res ~ fitted.ols)
 
-
-
+fitted(lm.abs.res)[1:10]
 ```
 
 2.2 To visualize the lm.abs.res regression line, plot the **fitted.ols** vector against the **abs.res** vector. Then draw a red line using the `abline()` function for the **lm.abs.res** regression object.
 
 ```{r wls.plot, fig.width=6, fig.height=6}
-
+plot(fitted.ols, abs.res)
+abline(lm.abs.res, col = "red")
 ```
 
 2.3 Specify and Run the WLS Model. First, create a weight vector named **wts** equal to the inverse squared predicted values of **lm.abs.res** (use `wts <- 1/fitted(lm.abs.res)^2`). 
@@ -106,11 +99,30 @@ Then fit the WLS regression model using the same predictors you used in **ols.fi
 While we are at it, also fit a similar weighted GLM model (**WGLM**), by using the `glm()` function and storing the results in an object named **fit.wglm**. Then display the `summary()` results for the WGLM. 
 
 ```{r}
+wts <- (1 / fitted(lm.abs.res)^2)
+wts[1:10]
+```
 
+```{r}
+fit.wls <- lm(Salary ~ AtBat + Hits + Walks + PutOuts + Assists + HmRun, data = Hitters, weights = wts)
+```
+
+
+```{r}
+fit.wglm <- glm(Salary ~ AtBat + Hits + Walks + PutOuts + Assists + HmRun, data = Hitters, weights = wts)
+```
+
+```{r}
+summary(fit.ols)
+summary(fit.wls)
+summary(fit.wglm)
 ```
 
 2.4 Observe the similarities an differences between the OLS, WLS and WGLM model and provide a brief commentary of your observations.
 
+```{r}
+# In many cases, the R squared for WLS is higher than the one for OLS, but in this dataset, the R squared for WLS is smaller. (0.311 > 0.1747) However, comparing these two is not a proper decision since R squared for WLS is for the proportion of the explained weighted variance, not the variance. As we found out above, since this OLS's residuals are heteroskedastic, WLS has less variance than OLS. WGLM model shows the same result as WLS, but different measures with 2LL fir statistics.
+```
 
 
 
@@ -124,23 +136,36 @@ Please note that **myopic** is coded as 1 (Yes), 0 (No) (not 1 and 2)
 For sanity check, list the first 10 rows and 8 columns of this dataset.
 
 ```{r}
-
+myopia <- read.table("myopia.csv", header = T, row.names = 1, sep = ",")
+myopia[1:10, 1:8]
 ```
 
 3.2 Fit a logistic model to predict whether a kid is **myopic**, using `age + female + sports.hrs + read.hrs + mommy + dadmy` as predictors. **Tip:** use `family="binomial"(link="logit")`. Store the results in an object named **myopia.logit**. Display the `summary()` results. Then display the `summary()` results.
 
 ```{r}
+myopia.logit <- glm(myopic ~ age + female + sports.hrs + read.hrs + mommy + dadmy, family="binomial"(link="logit"), data=myopia)
+summary(myopia.logit)
 
 ```
 
 3.3 For interpretation purposes, display the log-odds alongside the odds. Use the `coef()` function to extract the log-odds coefficients from **myopia.logit** and save them in a vector object named **log.odds**. Then use the `exp()` function to conver the log-odds into odds and store the results in a vector object named **odds**. The enter the `options(scipen=4)` command to minimize the use of scientific notation. Finally, list the log-odds and odds side by side. To do this,  use the `cbind()` function to bind the two vectors into one table and name the columns **"Log-Odds"** and **"Odds"** respectively. Embed the `cbind()` function inside the `print()` function with the parameter `digits=2` to get a more compact display.
 
 ```{r}
+log.odds <- coef(myopia.logit)
+odds <- exp(log.odds)
 
+options(scipen = 4)
+
+print(cbind("Log-Odds" = log.odds, "Odds" = odds), digits = 2)
 ```
  
 3.4 Provide a brief interpretation of both, the log-odds and odds effects of **read.hrs** and **mommy**. Please refer to the respective variable measurment units in your discussion.
 
+```{r}
+# On average, when the hour of reading per week increases by 1, the log-odds of developing myopia within the first five years goes up by 0.799 when everything else holds constant. In odds, it increases by a factor of 2.22 in the same situation. 
+
+# When the child's mother is myopic, on average, the log-odds of the child developing myopic increase by 2.937, and the odds go up by a factor of 18.86, holding everything else constant.
+```
 
 
 ## 4. Decision Trees
@@ -148,11 +173,18 @@ For sanity check, list the first 10 rows and 8 columns of this dataset.
 4.1 **Regression Tree**. Load the **{tree}** library. Then fit the regression model **ols.fit** above, but this time as a **regression tree** using the `tree()` function and save the results in an object named **fit.tree.salary**. Then plot the tree using the `plot()` and `text()` functions (use the `pretty=0` parameter). Also use the `title()` function to title you tree diagram **"Baseball Salaries Regression Tree"**.
 
 ```{r fig.width=10, fig.height=5}
-
+library(tree)
+fit.tree.salary <- tree(Salary ~ AtBat + Hits + Walks + PutOuts + Assists + HmRun, data=Hitters)
+plot(fit.tree.salary)
+text(fit.tree.salary, pretty=0)
+title("Baseball Salaries Regression Tree")
 ```
 
 4.2 Classification Tree. Fit the Logistic model **myopia.logit**, but this time as a **classification tree** using the `tree()` function and save the results in an object named **fit.tree.myopia**. Then plot the tree using the `plot()` and `text()` functions (use the `pretty=0` parameter). Also use the `title()` function to title you tree diagram **"Myopia Classification Tree"**.
 
 ```{r fig.width=10, fig.height=5}
-
+fit.tree.myopia <- tree(myopic ~ age + female + sports.hrs + read.hrs + mommy + dadmy, data=myopia)
+plot(fit.tree.myopia)
+text(fit.tree.myopia, pretty=0)
+title("Myopia Classification Tree")
 ```
